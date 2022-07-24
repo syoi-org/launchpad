@@ -1,0 +1,130 @@
+- name: Setup Networking
+  hosts: remote
+  tasks:
+    - name: Fix hostname
+      command: hostnamectl set-hostname syoi2
+      become: true
+    - name: Enable ip forwarding (ipv4)
+      shell: echo 'net.ipv4.ip_forward = 1' | tee -a /etc/sysctl.conf
+      become: true
+    - name: Enable ip forwarding (ipv6)
+      shell: echo 'net.ipv6.conf.all.forwarding = 1' | tee -a /etc/sysctl.conf
+      become: true
+    - name: Reload for changes to take effect
+      command: sysctl -p /etc/sysctl.conf
+      become: true
+    - name: Enable and start Tailscale
+      command: systemctl enable --now tailscaled
+      become: true
+    - name: Authenticate to Tailscale
+      command: tailscale up --auth-key={{ tailscale_auth_key }}
+      become: true
+
+- name: mDNS configuration
+  hosts: remote
+  tasks:
+    - name: Enable mDNS in systemd-resolved
+      command: sed -i 's/#MulticastDNS=no/MulticastDNS=yes/' /etc/systemd/resolved.conf
+      become: true
+    - name: Enable mDNS for interface in NetworkManager
+      copy:
+        content: |
+          [connection]
+          connection.mdns=2
+        dest: /etc/NetworkManager/conf.d/50-mdns-default.conf
+      become: true
+    - command: systemctl restart systemd-resolved
+      become: true
+    - command: systemctl restart NetworkManager
+      become: true
+
+- name: Consul Configuration
+  hosts: remote
+  tasks:
+    - name: Create Consul data directory
+      file:
+        dest: /opt/consul/
+        owner: consul
+        group: consul
+        state: directory
+      become: true
+    - name: Copy Consul configuration
+      template:
+        src: static/consul.hcl.j2
+        dest: /etc/consul.d/consul.hcl
+        owner: consul
+        group: consul
+      become: true
+    - name: Create Consul environment file
+      copy:
+        content: ''
+        dest: /etc/consul.d/consul.env
+        owner: consul
+        group: consul
+      become: true
+    - name: Enable and start Consul
+      command: systemctl enable --now consul
+      become: true
+
+- name: Nomad Configuration
+  hosts: remote
+  tasks:
+    - name: Create Nomad data directory
+      file:
+        dest: /opt/nomad/
+        owner: nomad
+        group: nomad
+        state: directory
+      become: true
+    - name: Copy Nomad configuration
+      template:
+        src: static/nomad.hcl.j2
+        dest: /etc/nomad.d/nomad.hcl
+        owner: nomad
+        group: nomad
+      become: true
+    - name: Create Nomad environment file
+      copy:
+        content: ''
+        dest: /etc/nomad.d/nomad.env
+        owner: nomad
+        group: nomad
+      become: true
+    - name: Create container data directory
+      file:
+        dest: /data
+        owner: nomad
+        group: nomad
+        state: directory
+      become: true
+    - name: Enable and start Nomad
+      command: systemctl enable --now nomad
+      become: true
+
+- name: Configure Firewall Rules
+  hosts: remote
+  tasks:
+    - name: Allow all from local network
+      command: firewall-cmd --permanent --zone=trusted --add-source=10.100.0.0/16
+      become: true
+    - name: Add Consul service
+      command: firewall-cmd --permanent --new-service=consul
+      become: true
+    - name: Add Consul service ports
+      command: firewall-cmd --permanent --service=consul --add-port=8500/tcp
+      become: true
+    - name: Make consul avaliable to LAN
+      command: firewall-cmd --permanent --zone=public --add-service=consul
+      become: true
+    - name: Add Nomad service
+      command: firewall-cmd --permanent --new-service=nomad
+      become: true
+    - name: Add Nomad service ports
+      command: firewall-cmd --permanent --service=nomad --add-port=4646/tcp
+      become: true
+    - name: Make Nomad avaliable to LAN
+      command: firewall-cmd --permanent --zone=public --add-service=nomad
+      become: true
+    - name: Reload for changes to take effect
+      command: firewall-cmd --reload
+      become: true

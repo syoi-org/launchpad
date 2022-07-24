@@ -1,0 +1,33 @@
+#jinja2:variable_start_string:'[%', variable_end_string:'%]'
+data_dir = "/opt/nomad"
+bind_addr = "0.0.0.0"
+
+advertise {
+  http = "{{ GetInterfaceIP \"enp6s18\" }}"
+  rpc  = "{{ GetInterfaceIP \"enp6s18\" }}"
+  serf = "{{ GetInterfaceIP \"enp6s18\" }}"
+}
+
+client {
+  enabled = true
+  host_volume "data" {
+    path      = "/data"
+    read_only = false
+  }
+}
+
+server {
+  enabled = true
+  bootstrap_expect = 1
+  encrypt = "[% lookup('ansible.builtin.env', 'NOMAD_SECRET_KEY') %]"
+}
+
+plugin "docker" {
+  config {
+    volumes {
+      enabled      = true
+      selinuxlabel = "z"
+    }
+    allow_privileged = true
+  }
+}
