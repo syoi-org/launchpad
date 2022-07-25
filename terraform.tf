@@ -15,5 +15,9 @@ terraform {
       source  = "davidsbond/tailscale"
       version = ">= 0.12.2"
     }
+    cloudflare = {
+      source  = "cloudflare/cloudflare"
+      version = ">= 3.19.0"
+    }
   }
 }

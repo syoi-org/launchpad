@@ -51,3 +51,12 @@ resource "proxmox_vm_qemu" "syoi2" {
     working_dir = "${path.module}/ansible"
   }
 }
+
+# Read Tailscale IP from Tailscale API
+data "tailscale_device" "syoi2" {
+  depends_on = [
+    proxmox_vm_qemu.syoi2
+  ]
+  name     = "syoi2.syoi-org.org.github"
+  wait_for = "120s"
+}
