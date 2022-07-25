@@ -17,7 +17,7 @@
       command: systemctl enable --now tailscaled
       become: true
     - name: Authenticate to Tailscale
-      command: tailscale up --auth-key={{ tailscale_auth_key }}
+      command: tailscale up --auth-key={{ lookup('ansible.builtin.env', 'TAILSCALE_AUTH_KEY') }}
       become: true
 
 - name: mDNS configuration

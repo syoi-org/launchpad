@@ -47,8 +47,11 @@ resource "proxmox_vm_qemu" "syoi2" {
 
   # Call provisioning script to configure the VM with ansible
   provisioner "local-exec" {
-    command     = "./provision.sh --extra-vars tailscale_auth_key=${tailscale_tailnet_key.syoi2_key.key} ${self.default_ipv4_address}"
+    command     = "./provision.sh ${self.default_ipv4_address}"
     working_dir = "${path.module}/ansible"
+    environment = {
+      TAILSCALE_AUTH_KEY = tailscale_tailnet_key.syoi2_key.key
+    }
   }
 }
 
